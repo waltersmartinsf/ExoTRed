@@ -241,3 +241,24 @@ def masterflat(data_path,save_path,input_file):
         print '!!! ERROR/WARNING !!!'
         print 'Check if the superbias was created or if there is more than one superbias image.'
     return output
+
+def science_reduction(data_path,save_path,input_file):
+    """
+    Calibrate science images with masterflat (or superflat) and masterbias (or superbias) images.
+    ___
+    INPUT:
+    For obtain this parameters, use the input_info function.
+
+    data_path: string, path where are the images data.
+    save_path: string, path where will save all reduced images.
+    input_file: dict, with information describe in the YAML file.
+
+    OUTPUT:
+    It is possible that the function return some of these values:
+
+    0. Create the masterflat image on the save_path.
+    1. It do not create the masterflat image, because of some erros.
+    """
+    #name of the planet
+    planet = file['exoplanet']
+    return
