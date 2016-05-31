@@ -7,10 +7,9 @@ Installation:
 
 Under Ureka or astroconda enviromment, do:
 
-{% highlight ruby %}
+```python
 python setup.py install
-{% highlight ruby %}
-
+```
 ___
 
 
