@@ -21,10 +21,12 @@ import yaml #input data without any trouble
 import string
 import numpy as np
 from astropy.io import fits
-#******************************************************************************
-#**************** BEGIN INPUT PATH FILE ***************************************
-#******************************************************************************
-
+from astropy.time import Time #control time in fits images
+from astropy.coordinates import SkyCoord,get_sun,ICRS #get the Sun position from a instant of time
+from pandas import DataFrame, read_csv
+from string import split #use to unconcanated a string in parts
+#import string #transform a list in a string of caracters
+#from pandas import HDFStore #save data in a database
 
 
 def input_info(path_input):
@@ -319,4 +321,128 @@ def science_reduction(data_path,save_path,input_file):
     for i in range(len(abexoplanet)):
         iraf.imstat(abexoplanet[i])
     os.chdir(original_path) #change to save_path
+    return
+
+def time_info(data_path,save_path,input_file):
+    """
+    Obtain the Sideral Time and the Heliocentric Jullian Date from the header of the images.
+    ___
+    INPUT:
+    For obtain this parameters, use the input_info function.
+
+    data_path: string, path where are the images data.
+    save_path: string, path where will save all reduced images.
+    input_file: dict, with information describe in the YAML file.
+
+    OUTPUT:
+    It is possible that the function return some of these values:
+
+    0. Create the masterflat image on the save_path.
+    1. It do not create the masterflat image, because of some erros.
+    """
+    original_path = os.getcwd() #set original directory
+    planet = input_file['exoplanet'] #set exoplanet name
+    print '\nObtain the images .... \n'
+    print 'Change to ', save_path
+    os.chdir(save_path) #change to save directory where is our scvience images
+    images = sorted(glob.glob('AB'+input_file['exoplanet']+'*.fits'))
+    print '\nImages = \n',images
+    tempo_loc = [] #time object
+    SUN = [] #Sun coordinate object
+    ra_sun, dec_sun, dsun = np.zeros(len(images)),np.zeros(len(images)),np.zeros(len(images)) #sun coordinates
+    JD = np.zeros(len(images)) #julian date from time object
+    ST = np.zeros(len(images))
+    HJD = np.zeros(len(images))
+    #create the exoplanet object coordianate
+    exoplanet = SkyCoord(dec=input_file['DEC'],ra=input_file['RA'],unit=('deg','deg'),frame=input_file['frame'])
+    print '\nObtain data info from header ....\n'
+    for i in range(len(images)):
+        hdr = fits.getheader(images[i])
+        UTC = hdr['date-obs']+'T'+hdr['UT'] #string that contain the time in UTC in isot format
+        tempo_loc.append(Time(UTC,scale=input_file['scale-time'],format='isot',location=(input_file['lon-obs'],input_file['lat-obs'])))#,input_data['altitude'])))
+        JD[i] = tempo_loc[i].jd
+        ST[i] = tempo_loc[i].sidereal_time('apparent').hour
+        SUN.append(get_sun(tempo_loc[i]))
+        ra_sun[i],dec_sun[i] = SUN[i].ra.deg, SUN[i].dec.deg
+        dsun[i] = SUN[i].distance.value
+        HJD[i] = use.hjd_date(JD[i],dsun[i],dec_sun[i],ra_sun[i],exoplanet.dec.deg,exoplanet.ra.deg,circular_orbit=input_file['circular_orbit'])
+        use.update_progress((i+1.)/len(images))
+    print '\n.... done.\n'
+    print '\n Time from header = \n'
+    #print '\nImages ** UTC (YYYY-MM-DDTHH:MM:SS) ** JD (7d.5d) ** ST (hours) ** ST (HH:MM:SS) ** Sun Coordinate (epoch,RA,DEC,Distance) (deg,deg,AU) \n'
+    ST_string = []
+    for i in range(len(images)):
+        ST1 = int(ST[i])
+        ST2 = int((ST[i]-ST1)*60.)
+        ST3 = (((ST[i]-ST1)*60.)-ST2)*60
+        ST_string.append(str(ST1)+':'+str(ST2)+':'+str(ST3))
+        tempo_loc[i] = tempo_loc[i].value
+        use.update_progress((i+1.)/len(images))
+        #print images[i], ' ** ',tempo_loc[i], ' ** ', JD[i], ' ** ', ST[i],' ** ',ST_string[i],' ** ',sun_loc[i],' ** ',HJD[i]
+    print '\nSave data file ... \n'
+    data = DataFrame([images,tempo_loc,list(JD),list(ST),list(ST_string),list(ra_sun),list(dec_sun),list(dsun),list(HJD)]).T
+    data.columns=['images','UTC','JD','ST','ST_isot','RA_SUN','DEC_SUN','D_SUN','HJD']
+    print data
+    data.to_csv('results.csv')
+    os.chdir(original_path)
+    return
+
+def time_calibration(data_path,save_path,input_file):
+    """
+    Obtain the calibration for time (hjd) by pyraf and the airmass for each image. Include in the header all information.
+    """
+    original_path = os.getcwd()
+    #change to save data reduction directory
+    os.chdir(save_path)
+    print '\n Reading the list of images ....\n'
+    planet = input_file['exoplanet'] #set exoplanet name
+    images = sorted(glob.glob('AB'+planet+'*.fits'))
+    print images
+    #include de RA,DEC and epoch of the exoplanet
+    RA,DEC,epoch = input_file['RA'],input_file['DEC'],input_file['epoch']
+    #obtain ST JD using iraf task and introduce in the header
+    for i in range(len(images)):
+        hdr = fits.getheader(images[i])
+        if int(split(hdr['UT'],':')[0]) < int(hdr['timezone']):
+            new_date = use.yesterday(hdr['date-obs'])
+            #print images[i], new_date
+        else:
+            new_date = hdr['date-obs']
+        year,month,day = split(new_date,'-')
+        iraf.asttimes(year=year,month=month,day=day,time=hdr['loctime'],obs=input_file['observatory'])
+        JD = iraf.asttimes.jd #obtain julian date
+        LMST = iraf.asttimes.lmst #obtain the sideral time
+        LMST = use.sexagesimal_format(LMST) #convert sideral time in sexagesimal format
+        iraf.hedit(images[i],'ST',LMST,add='yes',verify='no',show='no',update='yes') #create the ST keyword in the header
+        iraf.ccdhedit(images[i],'LMST',LMST,type='string') #include the mean sideral time in the header
+        iraf.ccdhedit(images[i],'JD',JD,type='string') #include de julian date in the header
+        #include RA, and DEC of the object in your header
+        iraf.ccdhedit(images[i],"RA",RA,type="string") #include right ascention in the header
+        iraf.ccdhedit(images[i],"DEC",DEC,type="string")  #include declination in the header
+        iraf.ccdhedit(images[i],"epoch",epoch,type="string") #include epoch in the header
+        # use.update_progress((i+1.)/len(images))
+    print '\n Setting airmass ....\n'
+    for i in range(len(images)):
+        print '# ',images[i]
+        #iraf.hedit(images[i],'airmass',airmass,add='yes')
+        #iraf.hedit(images[i],'HJD',HJD,add='yes')
+        iraf.setairmass.observatory = input_file['observatory']
+        iraf.setairmass(images[i])
+        iraf.setjd.time = 'ut'
+        iraf.setjd(images[i])
+    print '\n.... done.\n'
+    #export information
+    hjd, jd, airmass, st = [],[],[],[]
+    for i in range(len(images)):
+        hdr = fits.getheader(images[i])
+        hjd.append(hdr['HJD'])
+        jd.append(hdr['JD'])
+        airmass.append(hdr['airmass'])
+        st.append(hdr['st'])
+    #saving the data
+    data = DataFrame([list(hjd),list(jd),list(st),list(airmass)]).T
+    data.columns = ['HJD','JD','ST','Airmass']
+    data.to_csv('results_iraf_calibrations.csv')
+    #change to workings directory
+    os.chdir(original_path)
     return
