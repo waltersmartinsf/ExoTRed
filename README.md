@@ -5,18 +5,17 @@ ___
 
 Installation:
 
-Under Ureka or astroconda environment, do:
+Under astroconda environment, do:
 
 ```python
 python setup.py install
 ```
 
-If you want to use astroconta environment, you will need to install some 32-libs to work properly:
+If you want to install astroconta environment, you will need to install some 32-libs to work properly:
 
 ```bash
 sudo apt install libc6:i386 libz1:i386 libncurses5:i386 libbz2-1.0:i386 libuuid1:i386 libxcb1:i386 libxmu6:i386
 ```
-
 ___
 
 
