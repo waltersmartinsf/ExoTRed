@@ -14,6 +14,7 @@ Loading packges and python useful scritps
 from pyraf import iraf #loading iraf package
 from login import * #loading login.cl parameters for iraf
 from ExoSetupTaskParameters import * #loading setup from PyExoDRPL
+import useful_functions as use
 import glob #package for list files
 import os #package for control bash commands
 import yaml #input data without any trouble
@@ -241,3 +242,81 @@ def masterflat(data_path,save_path,input_file):
         print '!!! ERROR/WARNING !!!'
         print 'Check if the superbias was created or if there is more than one superbias image.'
     return output
+
+def science_reduction(data_path,save_path,input_file):
+    """
+    Calibrate science images with masterflat (or superflat) and masterbias (or superbias) images.
+    ___
+    INPUT:
+    For obtain this parameters, use the input_info function.
+
+    data_path: string, path where are the images data.
+    save_path: string, path where will save all reduced images.
+    input_file: dict, with information describe in the YAML file.
+
+    OUTPUT:
+    It is possible that the function return some of these values:
+
+    0. Create the masterflat image on the save_path.
+    1. It do not create the masterflat image, because of some erros.
+    """
+    #name of the planet
+    planet = input_file['exoplanet']
+    #set original directory
+    original_path = os.getcwd()
+    #Change your directory to data diretory
+    os.chdir(data_path)
+    #list all flat images
+    exoplanet = glob.glob(planet+'*.fits')
+    print '\nLoading exoplanet images \nTotal of '+planet+'*.fits  files = ',len(exoplanet),'\nFiles = \n'
+    print exoplanet
+    #if save_path exist, continue; if not, create.
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    #create a list of bias images and copy images to save_path
+    print '\nCopy science images to save_path directory to main reduction: ....'
+    os.system('cp '+planet+'*.fits '+save_path)
+    print '\n .... done. \n'
+    #change to save_path
+    os.chdir(save_path)
+    #create the names for exoplanet science mages with bias subtracted
+    bexoplanet = []
+    for i in exoplanet:
+        bexoplanet.append('B'+i)
+        #verify if previous superbias exist
+        if os.path.isfile('B'+i) == True:
+            os.system('rm B'+i)
+    print '\n Will be create this images: \n'
+    print bexoplanet
+    #exoplanet = string.join(exoplanet,',') #create the list string of exoplanet science images
+    #bexoplanet = string.join(bexoplanet,',')#create the list string of bexoplanet science images
+    print '\nSubtracting superbias.fits from all '+planet+'*.fits images ....\n'
+    for i in range(len(exoplanet)):
+        iraf.imarith(exoplanet[i],'-','superbias.fits',bexoplanet[i])
+        use.update_progress((i+1.)/len(bexoplanet))
+    print '\n.... cleaning '+planet+'*.fits images\n'
+    os.system('rm '+planet+'*.fits')
+    print '\n Statistics of B'+planet+'*.fits images: \n'
+    for i in range(len(bexoplanet)):
+        iraf.imstat(bexoplanet[i])
+    print '\nFlatfielding the B'+planet+'*.fits ....\n'
+    #create the names for exoplanet science images with bias subtracted and flatfielding
+    abexoplanet = []
+    for i in bexoplanet:
+        abexoplanet.append('A'+i)
+        #verify if previous superbias exist
+        if os.path.isfile('A'+i) == True:
+            os.system('rm A'+i)
+    print '\n Will be create this images: \n'
+    print abexoplanet
+    #flatifielding images
+    for i in range(len(abexoplanet)):
+        iraf.imarith(bexoplanet[i],'/','superflat.fits',abexoplanet[i])
+        use.update_progress((i+1.)/len(abexoplanet))
+    print '\n.... cleaning B'+planet+'*.fits images\n'
+    os.system('rm B'+planet+'*.fits')
+    print '\n Statistics of AB'+planet+'*.fits images: \n'
+    for i in range(len(abexoplanet)):
+        iraf.imstat(abexoplanet[i])
+    os.chdir(original_path) #change to save_path
+    return

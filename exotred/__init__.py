@@ -14,16 +14,18 @@ Loading packges and python useful scritps
 from pyraf import iraf #loading iraf package
 from login import * #loading login.cl parameters for iraf
 from ExoSetupTaskParameters import * #loading setup from PyExoDRPL
+import useful_functions as use
 import glob #package for list files
 import os #package for control bash commands
 import yaml #input data without any trouble
 import string
 import numpy as np
 from astropy.io import fits
-#******************************************************************************
-#**************** BEGIN INPUT PATH FILE ***************************************
-#******************************************************************************
-
+from astropy.time import Time #control time in fits images
+from astropy.coordinates import SkyCoord,get_sun,ICRS #get the Sun position from a instant of time
+from pandas import DataFrame
+#import string #transform a list in a string of caracters
+#from pandas import HDFStore #save data in a database
 
 
 def input_info(path_input):
@@ -260,5 +262,125 @@ def science_reduction(data_path,save_path,input_file):
     1. It do not create the masterflat image, because of some erros.
     """
     #name of the planet
-    planet = file['exoplanet']
+    planet = input_file['exoplanet']
+    #set original directory
+    original_path = os.getcwd()
+    #Change your directory to data diretory
+    os.chdir(data_path)
+    #list all flat images
+    exoplanet = glob.glob(planet+'*.fits')
+    print '\nLoading exoplanet images \nTotal of '+planet+'*.fits  files = ',len(exoplanet),'\nFiles = \n'
+    print exoplanet
+    #if save_path exist, continue; if not, create.
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    #create a list of bias images and copy images to save_path
+    print '\nCopy science images to save_path directory to main reduction: ....'
+    os.system('cp '+planet+'*.fits '+save_path)
+    print '\n .... done. \n'
+    #change to save_path
+    os.chdir(save_path)
+    #create the names for exoplanet science mages with bias subtracted
+    bexoplanet = []
+    for i in exoplanet:
+        bexoplanet.append('B'+i)
+        #verify if previous superbias exist
+        if os.path.isfile('B'+i) == True:
+            os.system('rm B'+i)
+    print '\n Will be create this images: \n'
+    print bexoplanet
+    #exoplanet = string.join(exoplanet,',') #create the list string of exoplanet science images
+    #bexoplanet = string.join(bexoplanet,',')#create the list string of bexoplanet science images
+    print '\nSubtracting superbias.fits from all '+planet+'*.fits images ....\n'
+    for i in range(len(exoplanet)):
+        iraf.imarith(exoplanet[i],'-','superbias.fits',bexoplanet[i])
+        use.update_progress((i+1.)/len(bexoplanet))
+    print '\n.... cleaning '+planet+'*.fits images\n'
+    os.system('rm '+planet+'*.fits')
+    print '\n Statistics of B'+planet+'*.fits images: \n'
+    for i in range(len(bexoplanet)):
+        iraf.imstat(bexoplanet[i])
+    print '\nFlatfielding the B'+planet+'*.fits ....\n'
+    #create the names for exoplanet science images with bias subtracted and flatfielding
+    abexoplanet = []
+    for i in bexoplanet:
+        abexoplanet.append('A'+i)
+        #verify if previous superbias exist
+        if os.path.isfile('A'+i) == True:
+            os.system('rm A'+i)
+    print '\n Will be create this images: \n'
+    print abexoplanet
+    #flatifielding images
+    for i in range(len(abexoplanet)):
+        iraf.imarith(bexoplanet[i],'/','superflat.fits',abexoplanet[i])
+        use.update_progress((i+1.)/len(abexoplanet))
+    print '\n.... cleaning B'+planet+'*.fits images\n'
+    os.system('rm B'+planet+'*.fits')
+    print '\n Statistics of AB'+planet+'*.fits images: \n'
+    for i in range(len(abexoplanet)):
+        iraf.imstat(abexoplanet[i])
+    os.chdir(original_path) #change to save_path
+    return
+
+def time_info(data_path,save_path,input_file):
+    """
+    Obtain the Sideral Time and the Heliocentric Jullian Date from the header of the images.
+    ___
+    INPUT:
+    For obtain this parameters, use the input_info function.
+
+    data_path: string, path where are the images data.
+    save_path: string, path where will save all reduced images.
+    input_file: dict, with information describe in the YAML file.
+
+    OUTPUT:
+    It is possible that the function return some of these values:
+
+    0. Create the masterflat image on the save_path.
+    1. It do not create the masterflat image, because of some erros.
+    """
+    planet = input_file['exoplanet']
+    print '\nObtain the images .... \n'
+    print 'Change to ', save_path
+    os.chdir(save_path) #change to save directory where is our scvience images
+    images = sorted(glob.glob('AB'+input_file['exoplanet']+'*.fits'))
+    print '\nImages = \n',images
+    tempo_loc = [] #time object
+    SUN = [] #Sun coordinate object
+    ra_sun, dec_sun, dsun = np.zeros(len(images)),np.zeros(len(images)),np.zeros(len(images)) #sun coordinates
+    JD = np.zeros(len(images)) #julian date from time object
+    ST = np.zeros(len(images))
+    HJD = np.zeros(len(images))
+    #create the exoplanet object coordianate
+    exoplanet = SkyCoord(dec=input_file['DEC'],ra=input_file['RA'],unit=('deg','deg'),frame=input_file['frame'])
+    print '\nObtain data info from header ....\n'
+    for i in range(len(images)):
+        hdr = fits.getheader(images[i])
+        UTC = hdr['date-obs']+'T'+hdr['UT'] #string that contain the time in UTC in isot format
+        tempo_loc.append(Time(UTC,scale=input_data['scale-time'],format='isot',location=(input_data['lon-obs'],input_data['lat-obs'])))#,input_data['altitude'])))
+        JD[i] = tempo_loc[i].jd
+        ST[i] = tempo_loc[i].sidereal_time('apparent').hour
+        SUN.append(get_sun(tempo_loc[i]))
+        ra_sun[i],dec_sun[i] = SUN[i].ra.deg, SUN[i].dec.deg
+        dsun[i] = SUN[i].distance.value
+        HJD[i] = use.hjd_date(JD[i],dsun[i],dec_sun[i],ra_sun[i],exoplanet.dec.deg,exoplanet.ra.deg,circular_orbit=input_data['circular_orbit'])
+        use.update_progress((i+1.)/len(images))
+    print '\n.... done.\n'
+    print '\n Time from header = \n'
+    #print '\nImages ** UTC (YYYY-MM-DDTHH:MM:SS) ** JD (7d.5d) ** ST (hours) ** ST (HH:MM:SS) ** Sun Coordinate (epoch,RA,DEC,Distance) (deg,deg,AU) \n'
+    ST_string = []
+    for i in range(len(images)):
+        ST1 = int(ST[i])
+        ST2 = int((ST[i]-ST1)*60.)
+        ST3 = (((ST[i]-ST1)*60.)-ST2)*60
+        ST_string.append(str(ST1)+':'+str(ST2)+':'+str(ST3))
+        tempo_loc[i] = tempo_loc[i].value
+        use.update_progress((i+1.)/len(images))
+        #print images[i], ' ** ',tempo_loc[i], ' ** ', JD[i], ' ** ', ST[i],' ** ',ST_string[i],' ** ',sun_loc[i],' ** ',HJD[i]
+    print '\nSave data file ... \n'
+    data = DataFrame([images,tempo_loc,list(JD),list(ST),list(ST_string),list(ra_sun),list(dec_sun),list(dsun),list(HJD)]).T
+    data.columns=['images','UTC','JD','ST','ST_isot','RA_SUN','DEC_SUN','D_SUN','HJD']
+    print data
+    data.to_csv('results.csv')
+    os.chdir(original_path)
     return
