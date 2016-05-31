@@ -11,11 +11,13 @@ Under astroconda environment, do:
 python setup.py install
 ```
 
-If you want to install astroconta environment, you will need to install some 32-libs to work properly:
+If you want to install astroconta environment, you will need to install before some 32-libs to work properly:
 
 ```bash
 sudo apt install libc6:i386 libz1:i386 libncurses5:i386 libbz2-1.0:i386 libuuid1:i386 libxcb1:i386 libxmu6:i386
 ```
+and then, you will have to do a mkiraf to create a login.cl under your work directory, where will have your python script using this package.
+
 ___
 
 
