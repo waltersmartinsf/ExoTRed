@@ -3,8 +3,6 @@ Exoplanetary Task Reduction, ExoTRed, is a python/pyraf package to reduce, calib
 
 ___
 
-Workflow:
-
 ![workflow](./workflow.png)
 ___
 
