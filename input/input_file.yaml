@@ -4,14 +4,10 @@
 
 # data_path ********************************************************************
 # Path where are the data we want to reduce
-#data_path: '/home/walter/workspace/exoplanet/data/xo2b/xo2b.b/'
-#data_path: '/home/walter/exoplanet/xo2b/xo2b_wsmf/05jan12/xo2b.u/'
 data_path: '/home/walter/github/ExoTRed/example/rawdata'
 
 # save_path ********************************************************************
 # Path where we want to save our results
-#save_path: '/home/walter/workspace/exoplanet/data/xo2b/xo2b.b/teste_pyraf'
-#save_path: '/home/walter/exoplanet/xo2b/xo2b_wsmf/05jan12/xo2b.u/iraf_task/'
 save_path: '/home/walter/github/ExoTRed/example/workdata'
 
 # exoplanet ********************************************************************
