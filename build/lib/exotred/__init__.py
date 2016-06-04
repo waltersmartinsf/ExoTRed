@@ -20,11 +20,16 @@ import os #package for control bash commands
 import yaml #input data without any trouble
 import string
 import numpy as np
+from numpy import arange,array
 from astropy.io import fits
 from astropy.time import Time #control time in fits images
 from astropy.coordinates import SkyCoord,get_sun,ICRS #get the Sun position from a instant of time
+from photutils import CircularAperture, aperture_photometry,CircularAnnulus,Background #Photometry routines 
+from astropy.table import hstack
+from astropy.io.misc import fnpickle, fnunpickle #create binary files
 from pandas import DataFrame, read_csv
 from string import split #use to unconcanated a string in parts
+import time
 #import string #transform a list in a string of caracters
 #from pandas import HDFStore #save data in a database
 
@@ -65,7 +70,7 @@ def input_info(path_input):
     input_file = file #creating a better name to our dictionary info
     return data_path, save_path, input_file
 
-def masterbias(data_path, save_path, input_file):
+def masterbias(input_file):
     """
     Obtain the masterbias.fits image.
     ___
@@ -85,6 +90,8 @@ def masterbias(data_path, save_path, input_file):
     """
     #Set original directory
     original_path = os.getcwd()
+    save_path = input_file['save_path']
+    data_path = input_file['data_path']
     #Change your directory to data diretory
     os.chdir(data_path)
     #list all bias images
@@ -131,7 +138,7 @@ def masterbias(data_path, save_path, input_file):
         print 'Check if the superbias was created or if there is more than one superbias image.'
     return output
 
-def masterflat(data_path,save_path,input_file):
+def masterflat(input_file):
     """
     Obtain the masterflat image for calibration.
     ___
@@ -150,6 +157,8 @@ def masterflat(data_path,save_path,input_file):
     """
     #set original directory
     original_path = os.getcwd()
+    data_path = input_file['data_path']
+    save_path = input_file['save_path']
     #Change your directory to data diretory
     os.chdir(data_path)
     #list all flat images
@@ -245,7 +254,7 @@ def masterflat(data_path,save_path,input_file):
         print 'Check if the superbias was created or if there is more than one superbias image.'
     return output
 
-def science_reduction(data_path,save_path,input_file):
+def science_reduction(input_file):
     """
     Calibrate science images with masterflat (or superflat) and masterbias (or superbias) images.
     ___
@@ -266,6 +275,8 @@ def science_reduction(data_path,save_path,input_file):
     planet = input_file['exoplanet']
     #set original directory
     original_path = os.getcwd()
+    save_path = input_file['save_path']
+    data_path = input_file['data_path']
     #Change your directory to data diretory
     os.chdir(data_path)
     #list all flat images
@@ -323,7 +334,7 @@ def science_reduction(data_path,save_path,input_file):
     os.chdir(original_path) #change to save_path
     return
 
-def time_info(data_path,save_path,input_file):
+def time_info(input_file):
     """
     Obtain the Sideral Time and the Heliocentric Jullian Date from the header of the images.
     ___
@@ -341,6 +352,7 @@ def time_info(data_path,save_path,input_file):
     1. It do not create the masterflat image, because of some erros.
     """
     original_path = os.getcwd() #set original directory
+    save_path = input_file['save_path']
     planet = input_file['exoplanet'] #set exoplanet name
     print '\nObtain the images .... \n'
     print 'Change to ', save_path
@@ -387,11 +399,12 @@ def time_info(data_path,save_path,input_file):
     os.chdir(original_path)
     return
 
-def time_calibration(data_path,save_path,input_file):
+def time_calibration(input_file):
     """
     Obtain the calibration for time (hjd) by pyraf and the airmass for each image. Include in the header all information.
     """
     original_path = os.getcwd()
+    save_path = input_file['save_path']
     #change to save data reduction directory
     os.chdir(save_path)
     print '\n Reading the list of images ....\n'
@@ -446,3 +459,168 @@ def time_calibration(data_path,save_path,input_file):
     #change to workings directory
     os.chdir(original_path)
     return
+
+def bkg_info(input_file):
+    """
+    Obtain the sky backgound for each science image.
+
+    More in: http://photutils.readthedocs.io/en/latest/api/photutils.background.Background.html#photutils.background.Background
+
+    WARNING:
+
+    This routine only need to be run one time for the same set of images.
+    ___
+
+
+    INPUT:
+    For obtain this parameters, use the input_info function.
+
+    data_path: string, path where are the images data.
+    save_path: string, path where will save all reduced images.
+    input_file: dict, with information describe in the YAML file.
+    """
+    #set the original directory
+    original_path = os.getcwd()
+    save_path = input_file['save_path']
+    os.chdir(save_path)
+    planet = input_file['exoplanet']
+    tempo = time.time()
+    print 'Obtain background data for each image ... \n'
+    if not os.path.exists('background'): #if background does not exist, create!
+        os.makedirs('background')
+
+    images = sorted(glob.glob('AB'+planet+'*.fits'))
+    #if background exist, check if files bkg_data_image_name_.pik exist
+    #if not exist, then create, else: get out of here! XD
+    if os.path.exists('background') == True :
+        value = []
+        for i in images:
+            value.append(os.path.isfile('./background/'+'bkg_data_'+i+'_.pik'))
+    if (False in value) == True:
+        print 'Does not exist all files to all images in the sample.'
+        print 'Calculating ...'
+        print 'This will take some time... go drink some coffe'
+        print ' while you wait for the routine finish \n'
+        for i in images:
+            im = fits.getdata(i,header=False)
+            im = np.array(im,dtype='Float64')
+            bkg = Background(im,tuple(input_file['skysection'])) #estimating the background using a boxpixel
+            fnpickle(bkg,'./background/'+'bkg_data_'+i+'_.pik')
+            use.update_progress((float(images.index(i))+1.)/len(images))
+    else:
+        print 'The sky background files *.pik exist. \n'
+    print 'Sky backgound obtained.'
+    print 'Total time = ',abs(time.time()-tempo)/60.,' minutes'
+    os.chdir(original_path)
+    return
+
+def bkg_read(input_file):
+    """
+    Read the sky backgound files obtained by bkg_info routine and return the background mask and noise data.
+    """
+    #set the original directory
+    tempo = time.time()
+    original_path = os.getcwd()
+    save_path = input_file['save_path']
+    planet = input_file['exoplanet']
+    #change to save data reduction directory
+    os.chdir(save_path)
+    print 'Reading sky backgound files ...'
+    images = sorted(glob.glob('AB'+planet+'*.fits'))
+    bkg_data = []
+    bkg_rms = []
+    for i in range(len(images)):
+        bkg = fnunpickle('./background/'+'bkg_data_'+images[i]+'_.pik')
+        bkg_data.append(bkg.background)
+        bkg_rms.append(bkg.background_rms)
+        use.update_progress((i+1.)/len(images))
+    os.chdir(original_path)
+    print 'total time = ',abs(time.time()-tempo)/60.,' minutes'
+    return bkg_data, bkg_rms
+
+def phot_aperture(input_file,bkg_data,bkg_rms):
+    """
+    Obtain the aperture photometry to the list of apertures in the input_file dictionary.
+    ___
+    INPUT:
+    For obtain this parameters, use the input_info function.
+
+    data_path: string, path where are the images data.
+    save_path: string, path where will save all reduced images.
+    input_file: dict, with information describe in the YAML file.
+    bkg_data: sky background mask from bkg_info routine
+    bkg_rms: sky background noise from bkg_info routine
+
+    """
+    #set the original directory
+    original_path = os.getcwd()
+    save_path = input_file['save_path']
+    planet = input_file['exoplanet']
+    radii = np.arange(input_file['apertures'][0],input_file['apertures'][1],0.1)
+    #change to save data reduction directory
+    os.chdir(save_path)
+    if not os.path.exists('phot_results'):
+        os.makedirs('phot_results')
+    tempo = time.time()
+    print 'Starting aperture photometry'
+    print 'Saving results on: '+save_path+'/phot_results/'
+    #check the number of objects to make the photometry
+    N_obj = len(input_file['pxpositions'])/2.
+    print 'Number of objects = ',N_obj
+    positions = [] #create the positions variable (X,Y) in pixels unit on the CCD
+    for i in range(len(input_file['pxpositions'])):
+        if i % 2 == 0: #if the number is a even (or not a odd), the turple is created
+            positions.append((input_file['pxpositions'][i],input_file['pxpositions'][i+1]))
+    print 'Radius from ',radii[0],' to ',radii[-1],'\n'
+    images = sorted(glob.glob('AB'+planet+'*.fits'))
+    for radius in radii:
+        flux_data = []
+        for i in range(len(images)):
+            im = fits.getdata(images[i],header=False)
+            im = array(im,dtype='Float64')
+            phot_table = aperture_photometry(im - bkg_data[i], CircularAperture(positions, radius),
+                                             error=bkg_rms[i], effective_gain=float(input_file['gain']))
+            flux = [phot_table['aperture_sum'][0], phot_table['aperture_sum'][1],phot_table['aperture_sum_err'][0],
+                    phot_table['aperture_sum_err'][1],images[i]]
+            flux_data.append(flux)
+        flux_data = DataFrame(flux_data,columns=['hoststar','refstar','hoststar_err','refstar_err','image'])
+        flux_data.to_csv('./phot_results/'+planet+'_flux_radius_'+str(radius)+'.csv')
+        use.update_progress((float(np.where(radii == radius)[0])+1.)/len(radii))
+    print 'Time total = ',abs(time.time()-tempo)/60.,' minutes'
+    os.chdir(original_path)
+
+def phot_readData(input_file):
+    """
+    Read the aperture photometry files and return the normalized flux, rawflux, of the exoplanet, 
+    with the error, eflux, the heliocentric julian date, hjd, and teh airmass.
+    ___
+    
+    INPUT
+    
+    input_file: dict, dictionary of information for you data images sample.
+    """
+    original_path = os.getcwd()
+    os.chdir(input_file['save_path'])
+    print 'Reading '+input_file['exoplanet']+'*.csv files ....'
+    files_csv = np.sort(glob.glob(input_file['save_path']+'/phot_results/'+input_file['exoplanet']+'*.csv'))
+    scatter = np.zeros(len(files_csv))
+    for i in range(len(files_csv)):
+        phot_data = read_csv(files_csv[i])
+        scatter[i] = np.std(phot_data.hoststar)
+        use.update_progress((i+1.)/len(files_csv))
+    hjd = read_csv(input_file['save_path']+'/results_iraf_calibrations.csv')
+    airmass = hjd.Airmass
+    hjd = hjd.HJD.values
+    print '... done!'
+    id_min = scatter.argmin() #index of the min scatter file
+    id_max = scatter.argmax() #index for the maximum scatter file
+    print 'The smallest scatter is: '+str(files_csv[id_min])
+    print 'Which is file: '+files_csv[id_min]
+    print('Working @'+files_csv[id_min]+' that is the min scatter')
+    print('... Read '+files_csv[id_min]+' ...')
+    data_min_scatter = read_csv(files_csv[id_min])
+    print('... done.')
+    rawflux = data_min_scatter.hoststar.values/data_min_scatter.refstar.values
+    eflux = rawflux*np.sqrt((data_min_scatter.hoststar_err.values/data_min_scatter.hoststar.values)**2 + (data_min_scatter.refstar_err.values/data_min_scatter.refstar.values)**2)
+    os.chdir(original_path)
+    return rawflux,eflux,hjd,airmass
