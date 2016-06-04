@@ -1,15 +1,18 @@
-# ExoTRed
+## ExoTRed
 Exoplanetary Task Reduction, ExoTRed, is a python/pyraf package to reduce, calibrate and analysis data from observations of exoplanets.
 ___
+
 ## Functions:
 
 ![functions](./functions.png)
 ___
 
+## File Structure
+
 ![workflow](./workflow.png)
 ___
 
-Installation:
+## Installation:
 
 Under astroconda environment (see more [here][astrconda] to install astroconda), do:
 
