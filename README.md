@@ -7,20 +7,35 @@ ___
 ![functions](./functions.png)
 
 (1) *input_info*: Obtain information about the files that will be reduced from the input*.yaml file.
+
 (2) *masterbias*: Obtain the masterbias.fits image.
+
 (3) *masterflat*: Obtain the masterflat image for calibration
+
 (4) *science_reduction*: Calibrate science images with masterflat (or superflat) and masterbias (or superbias) images.
+
 (5) *time_info*: Obtain the Sideral Time and the Heliocentric Jullian Date from the header of the images.
+
 (6) *time_calibration*: Obtain the calibration for time (hjd) by pyraf and the airmass for each image. Include in the header all information.
+
 (7) *bkg_info*: Obtain the sky backgound for each science image.
+
 (8) *bkg_read*: Read the sky backgound files obtained by bkg_info routine and return the background mask and noise data.
+
 (9) *phot_aperture*: Obtain the aperture photometry to the list of apertures in the input_file dictionary.
+
 (10) *phot_readData*: Read the aperture photometry files and return the normalized flux, rawflux, of the exoplanet, with the error, eflux, the heliocentric julian date, hjd, and teh airmass.
+
 (11) *usefull_functions*: sub-package
+	
 	11.1 *update_progress*: Progress Bar to visualize the status of a procedure
+	
 	11.2 *hjd_date*: Return the Heliocentric Julian Date from a given Julian Date
+	
 	11.3 *delta_exp*: Obtain the mean time of the exposure when the exposure is less than 1 minute
+	
 	11.4 *sexagesimal_format*: Return the angle number in sexagesimal format.
+	
 	11.5 *yesterday*: Return the previous day of the input given by the header on 'DATE-OBS'
 ___
 
