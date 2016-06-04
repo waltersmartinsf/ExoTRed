@@ -61,8 +61,11 @@ scale-time: 'utc'
 #Photometry information ********************************************************
 #Some information to use in the photometry routine
 
+#center of your region (100 pixel to 100 pixel): [Y,X]
 skysection:   [526,81]
-pxpositions:  [582.79,581.76,559.06,512.4]
+#positions in pixels [X1,Y1,X2,Y2,X3,Y3,....,XN,YN] for N objects you want to make
+#an aperture photometry
+pxpositions:  [582.79,581.76,559.06,512.4] 
 apertures:    [7,14] #inferior and superior limits
 
 #*******************************************************************************
