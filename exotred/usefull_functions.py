@@ -199,12 +199,7 @@ def yesterday(date_obs):
         day = str(new_date_obs.day)
     year = str(new_date_obs.year)
     return year+'-'+month+'-'+day
-
-def time_split(time_split):
-    """
-    Return time in the
-    """
-    return time
+    
 #******************************************************************************
 #************ END of Usefull functions ****************************************
 #******************************************************************************
