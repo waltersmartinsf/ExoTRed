@@ -556,7 +556,8 @@ def phot_aperture(input_file,bkg_data,bkg_rms):
     original_path = os.getcwd()
     save_path = input_file['save_path']
     planet = input_file['exoplanet']
-    radii = np.arange(input_file['apertures'][0],input_file['apertures'][1],0.1)
+    #radii = np.arange(input_file['apertures'][0],input_file['apertures'][1],0.1)
+    radii = np.array(input_file['apertures'])
     #change to save data reduction directory
     os.chdir(save_path)
     if not os.path.exists('phot_results'):
