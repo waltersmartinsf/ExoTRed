@@ -14,7 +14,7 @@ Loading packges and python useful scritps
 from pyraf import iraf #loading iraf package
 from login import * #loading login.cl parameters for iraf
 from ExoSetupTaskParameters import * #loading setup from PyExoDRPL
-import useful_functions as use
+import usefull_functions as use
 import glob #package for list files
 import os #package for control bash commands
 import yaml #input data without any trouble

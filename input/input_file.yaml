@@ -18,26 +18,26 @@ exoplanet: 'xo2b'
 # epoch, RA, DEC ***************************************************************
 #coordinates of our host star + exoplanet
 epoch: '2000.0'
-RA: '07:48:06.46'
-DEC: '+50:13:32.9'
+RA: '07:48:06.46' #in degrees or deg:arcmin:arsec
+DEC: '+50:13:32.9' #in degrees or deg:arcmin:arsec
 frame: 'fk5'
 u.RA : 'degree'
 u.DEC : 'degree'
 
 #observatory *******************************************************************
 # name of the observatory where was made the images to set arimass, ST and UT
-observatory: 'mtbigelow'
-gain: 3.19
+observatory: 'mtbigelow' #observatory name listed on IRAF to set airmass
+gain: 3.19 #gain of the CCD used to evaluate the skybackground
 
 #lat-obs, lon-obs, time_zone ***************************************************
 # latitude (lat-obs) and longitude (lon-obs) of the observatory
 #and time_zone of the observatory
 #lat-obs: '32 24 59.3 N'
-lat-obs: 32.4164722222
+lat-obs: 32.4164722222 #latitude in degrees
 #lon-obs: '110 44 04.3 W'
-lon-obs: -110.734527778
-altitude: 2510.
-time_zone: +7.
+lon-obs: -110.734527778 #longitude degress
+altitude: 2510. #altitude in meters
+time_zone: 7. #time zone in hours
 
 # circular_orbit ***************************************************************
 #assume the Earth orbit is circular.
