@@ -14,7 +14,7 @@ Loading packges and python useful scritps
 from pyraf import iraf #loading iraf package
 from login import * #loading login.cl parameters for iraf
 from ExoSetupTaskParameters import * #loading setup from PyExoDRPL
-import useful_functions as use
+import usefull_functions as use
 import glob #package for list files
 import os #package for control bash commands
 import yaml #input data without any trouble
@@ -556,7 +556,8 @@ def phot_aperture(input_file,bkg_data,bkg_rms):
     original_path = os.getcwd()
     save_path = input_file['save_path']
     planet = input_file['exoplanet']
-    radii = np.arange(input_file['apertures'][0],input_file['apertures'][1],0.1)
+    #radii = np.arange(input_file['apertures'][0],input_file['apertures'][1],0.1)
+    radii = np.array(input_file['apertures'])
     #change to save data reduction directory
     os.chdir(save_path)
     if not os.path.exists('phot_results'):

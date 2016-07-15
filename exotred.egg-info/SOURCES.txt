@@ -3,7 +3,7 @@ exotred/ExoSetupTaskParameters.py
 exotred/__init__.py
 exotred/imstatistics.py
 exotred/login.py
-exotred/useful_functions.py
+exotred/usefull_functions.py
 exotred.egg-info/PKG-INFO
 exotred.egg-info/SOURCES.txt
 exotred.egg-info/dependency_links.txt
